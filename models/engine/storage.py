@@ -41,65 +41,95 @@ def get_objectByID(obj, id):
     return obj_list
 
 
-def get_total(obj):
+def get_total(obj, type=""):
     objec_dc = {}
     data = get_single_ob(obj)
     for d in data:
         if d.to_dict().get("amount"):
-            objec_dc[d.to_dict().get("expense")] = d.to_dict().get("amount")
+            objec_dc[d.to_dict().get(type)] = d.to_dict().get("amount")
     return objec_dc
 
 
-def get_obj_category(obj):
+def get_obj_category(obj, type=""):
     obj_forID = {}
     object = get_single_ob(obj)
     for instance in object:
         category_id = instance.to_dict().get('category_id')
-        obj_name = instance.to_dict().get("expense")
+        obj_name = instance.to_dict().get(type)
         if category_id:
             obj_forID[obj_name] = category_id
     return obj_forID
 
 
-def categoriesOfExpenses():
+def categoriesOfExpenses(obj, type):
     objToReturn = []
     all_read = []
-    obj_cat = get_obj_category(Expense).values()
-
+    obj_cat = get_obj_category(obj, type).values()
     for cate in obj_cat:
         if cate not in all_read:
             all_read.append(cate)
             all_category = session.query(Category).filter(
                 Category.id == cate).first()
-            expenseByCategory = all_category.expense
-
-            for one_category_item in expenseByCategory:
-                objToReturn.append(
-                    {all_category.type: one_category_item.to_dict()})
+            if type == "income":
+                incomeByCategory = all_category.income
+                for one_category_item in incomeByCategory:
+                    objToReturn.append(
+                        {all_category.type: one_category_item.to_dict()})
+            else:
+                expenseByCategory = all_category.expense
+                for one_category_item in expenseByCategory:
+                    objToReturn.append(
+                        {all_category.type: one_category_item.to_dict()})
     return objToReturn
 
-def find_exp_category(id):
 
-    obj = get_objectByID(Expense, id)
+def find_exp_category(cls, obj_id):
+    obj = get_objectByID(cls, obj_id)
+    if len(obj) < 1:
+        return []
     for one_obj in obj:
         cate = one_obj.get('category_id')
-        expense = session.query(Expense).filter(
-            Expense.id == cate).first()
+        expense = session.query(cls).filter(
+            cls.category_id == cate).first()
         return expense
 
 
-def amount_gt(amount):
+def amount_gt(cls, amount, type):
     all_items = []
-    exp = session.query(Expense).filter(Expense.amount >= amount).all()
+    exp = session.query(cls).filter(cls.amount >= amount).all()
     for one in exp:
-        all_items.append({one.expense: one.amount})
+        if type != "income":
+            all_items.append({one.expense: one.amount})
+        else:
+            all_items.append({one.income: one.amount})
+
     return all_items
 
-def amount_lt(amount):
+
+def amount_lt(cls, amount, type):
     all_items = []
     if isinstance(amount, int):
-        exp = session.query(Expense).filter(Expense.amount <= amount).all()
+        exp = session.query(cls).filter(cls.amount <= amount).all()
         for one in exp:
-            all_items.append({one.expense: one.amount})
+            if type != "income":
+                all_items.append({one.expense: one.amount})
+            else:
+                all_items.append({one.income: one.amount})
         return all_items
     return []
+
+
+def filter_obj_byDate(cls, date_range_1, date_range_2):
+    try:
+        data = []
+        first_date = datetime.datetime.strptime(date_range_1, '%Y-%m-%d')
+        last_date = datetime.datetime.strptime(date_range_2, '%Y-%m-%d')
+        expenses = session.query(cls).filter(
+            cls.date_updated.between(first_date, last_date)).all()
+        for one_exp in expenses:
+            data.append(one_exp.to_dict())
+        return {"expenses <{}> - <{}>"
+                .format(datetime.datetime.strftime(first_date, "%Y-%m-%d"),
+                        datetime.datetime.strftime(last_date, "%Y-%m-%d")): data}
+    except ValueError as e:
+        return ({"error": str(e)})
