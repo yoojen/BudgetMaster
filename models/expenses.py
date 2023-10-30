@@ -12,8 +12,12 @@ class Expense(BaseModel, Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
 
+    
     def __init__(self, name, amt, usrid, ctid):
         self.expense = name
         self.amount = amt
         self.user_id = usrid
         self.category_id = ctid
+
+    def __repr__(self):
+        return f"<{self.__tablename__}>: <{self.expense}>"
